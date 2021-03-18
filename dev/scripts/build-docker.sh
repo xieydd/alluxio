@@ -33,7 +33,7 @@ function build_docker_image {
   local tag=$(echo ${tarball_basename%.tar.gz} | tr '[:upper:]' '[:lower:]')
   echo "Building ${tag} image..."
   docker build -t "${tag}" --build-arg "ALLUXIO_TARBALL=${tarball_basename}" .
-  rm -rf "${tmp_dir}"
+  #rm -rf "${tmp_dir}"
 }
 
 function main {

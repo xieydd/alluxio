@@ -321,7 +321,6 @@ public final class AlluxioJniFuseFileSystem extends AbstractFuseFileSystem {
   private int readInternal(String path, ByteBuffer buf, long size, long offset, FuseFileInfo fi) {
     int nread = 0;
     int rd = 0;
-    final int sz = (int) size;
     long fd = fi.fh.get();
     // FileInStream is not thread safe
     try (LockResource r1 = new LockResource(mFileLocks.get(fd).writeLock())) {
@@ -330,19 +329,22 @@ public final class AlluxioJniFuseFileSystem extends AbstractFuseFileSystem {
         LOG.error("Cannot find fd {} for {}", fd, path);
         return -ErrorCodes.EBADFD();
       }
-      is.seek(offset);
-      final byte[] dest = new byte[sz];
-      while (rd >= 0 && nread < size) {
-        rd = is.read(dest, nread, sz - nread);
-        if (rd >= 0) {
-          nread += rd;
-        }
-      }
 
-      if (nread == -1) { // EOF
-        nread = 0;
-      } else if (nread > 0) {
-        buf.put(dest, 0, nread);
+      if (offset - is.getPos() < is.remaining()) {
+        is.seek(offset);
+        final int sz = (int) size;
+        final byte[] dest = new byte[sz];
+        while (rd >= 0 && nread < sz) {
+          rd = is.read(dest, nread, sz - nread);
+          if (rd >= 0) {
+            nread += rd;
+          }
+        }
+        if (nread == -1) { // EOF
+          nread = 0;
+        } else if (nread > 0) {
+          buf.put(dest, 0, nread);
+        }
       }
     } catch (Throwable e) {
       LOG.error("Failed to read, path: {} size: {} offset: {}", path, size, offset, e);
