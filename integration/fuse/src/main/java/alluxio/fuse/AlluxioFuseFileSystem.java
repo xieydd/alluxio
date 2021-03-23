@@ -634,12 +634,6 @@ public final class AlluxioFuseFileSystem extends FuseStubFS {
           buf.put(0, dest, 0, nread);
         }
       }
-
-      if (nread == -1) { // EOF
-        nread = 0;
-      } else if (nread > 0) {
-        buf.put(0, dest, 0, nread);
-      }
     } catch (Throwable t) {
       LOG.error("Failed to read file={}, offset={}, size={}", path, offset, size, t);
       return AlluxioFuseUtils.getErrorCode(t);
