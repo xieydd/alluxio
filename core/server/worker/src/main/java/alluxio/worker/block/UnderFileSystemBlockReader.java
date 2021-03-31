@@ -210,6 +210,8 @@ public final class UnderFileSystemBlockReader extends BlockReader {
   @Override
   public int transferTo(ByteBuf buf) throws IOException {
     Preconditions.checkState(!mClosed);
+    updateBlockWriter(mInStreamPos);
+
     if (mUnderFileSystemInputStream == null) {
       return -1;
     }

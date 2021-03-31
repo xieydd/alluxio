@@ -11,7 +11,7 @@
 
 package alluxio.job.util;
 
-import alluxio.client.Cancelable;
+import alluxio.Constants;
 import alluxio.client.block.AlluxioBlockStore;
 import alluxio.client.block.BlockWorkerInfo;
 import alluxio.client.block.policy.BlockLocationPolicy;
@@ -19,7 +19,6 @@ import alluxio.client.block.policy.LocalFirstPolicy;
 import alluxio.client.file.FileSystemContext;
 import alluxio.client.file.URIStatus;
 import alluxio.client.file.options.InStreamOptions;
-import alluxio.client.file.options.OutStreamOptions;
 import alluxio.collections.IndexDefinition;
 import alluxio.collections.IndexedSet;
 import alluxio.conf.AlluxioConfiguration;
@@ -31,18 +30,14 @@ import alluxio.grpc.OpenFilePOptions;
 import alluxio.grpc.ReadPType;
 import alluxio.util.network.NetworkAddressUtils;
 import alluxio.util.network.NetworkAddressUtils.ServiceType;
-import alluxio.wire.BlockInfo;
 import alluxio.wire.BlockLocation;
 import alluxio.wire.FileBlockInfo;
 import alluxio.wire.WorkerNetAddress;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.google.common.io.ByteStreams;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
@@ -105,6 +100,7 @@ public final class JobUtils {
    */
   public static void loadBlock(URIStatus status, FileSystemContext context, long blockId)
       throws AlluxioException, IOException {
+
     AlluxioBlockStore blockStore = AlluxioBlockStore.create(context);
 
     String localHostName = NetworkAddressUtils.getConnectHost(ServiceType.WORKER_RPC,
@@ -128,11 +124,9 @@ public final class JobUtils {
       throw new AlluxioException(
           ExceptionMessage.PINNED_TO_MULTIPLE_MEDIUMTYPES.getMessage(status.getPath()));
     }
-    // since there is only one element in the set, we take the first element in the set
-    String medium = pinnedLocation.isEmpty() ? "" : pinnedLocation.iterator().next();
 
     OpenFilePOptions openOptions =
-        OpenFilePOptions.newBuilder().setReadType(ReadPType.NO_CACHE).build();
+        OpenFilePOptions.newBuilder().setReadType(ReadPType.CACHE_PROMOTE).build();
 
     AlluxioConfiguration conf = ServerConfiguration.global();
     InStreamOptions inOptions = new InStreamOptions(status, openOptions, conf);
@@ -140,27 +134,13 @@ public final class JobUtils {
     inOptions.setUfsReadLocationPolicy(BlockLocationPolicy.Factory.create(
         LocalFirstPolicy.class.getCanonicalName(), conf));
 
-    OutStreamOptions outOptions = OutStreamOptions.defaults(context.getClientContext());
-    outOptions.setMediumType(medium);
-    // Set write location policy always to local first for loading blocks for job tasks
-    outOptions.setLocationPolicy(BlockLocationPolicy.Factory.create(
-        LocalFirstPolicy.class.getCanonicalName(), conf));
 
-    BlockInfo blockInfo = status.getBlockInfo(blockId);
-    Preconditions.checkNotNull(blockInfo, "Can not find block %s in status %s", blockId, status);
-    long blockSize = blockInfo.getLength();
-    try (OutputStream outputStream =
-        blockStore.getOutStream(blockId, blockSize, localNetAddress, outOptions)) {
-      try (InputStream inputStream = blockStore.getInStream(blockId, inOptions)) {
-        ByteStreams.copy(inputStream, outputStream);
-      } catch (Throwable t) {
-        try {
-          ((Cancelable) outputStream).cancel();
-        } catch (Throwable t2) {
-          t.addSuppressed(t2);
-        }
-        throw t;
+    byte[] buf = new byte[8 * Constants.MB];
+    try (InputStream inputStream = blockStore.getInStream(blockId, inOptions)) {
+      while (inputStream.read(buf) != -1) {
       }
+    } catch (Throwable t) {
+      throw t;
     }
   }
 

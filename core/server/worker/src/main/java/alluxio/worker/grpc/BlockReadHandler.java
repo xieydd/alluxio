@@ -515,7 +515,7 @@ public class BlockReadHandler implements StreamObserver<alluxio.grpc.ReadRequest
      * @param len The length, in bytes, of the data to read from the block
      * @return a {@link DataBuffer} representing the data
      */
-    protected DataBuffer getDataBuffer(BlockReadRequestContext context, long offset, int len)
+    private DataBuffer getDataBuffer(BlockReadRequestContext context, long offset, int len)
         throws Exception {
       @Nullable
       BlockReader blockReader = null;
