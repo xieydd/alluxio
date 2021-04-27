@@ -52,12 +52,21 @@ ENV TINI_VERSION v0.18.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/local/bin/tini
 RUN chmod +x /usr/local/bin/tini
 
-RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common && \
-  add-apt-repository -y ppa:openjdk-r/ppa && \
-  apt-get update && \
-  apt-get install -y --no-install-recommends openjdk-8-jdk openjdk-8-jre-headless unzip vim && \
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/*
+#RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common && \
+#  add-apt-repository -y ppa:openjdk-r/ppa && \
+#  apt-get update && \
+#  apt-get install -y --no-install-recommends openjdk-8-jdk openjdk-8-jre-headless unzip vim && \
+#  apt-get clean && \
+#  rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y openjdk-8-jdk openjdk-8-jre-headless unzip vim && \
+    apt-get clean;
+
+# Fix certificate issues
+RUN apt-get update && \
+    apt-get install ca-certificates-java && \
+    apt-get clean && \
+    update-ca-certificates -f; 
 
 # Install arthas(https://github.com/alibaba/arthas) for analyzing performance bottleneck
 RUN wget -qO /tmp/arthas.zip "http://maven.aliyun.com/repository/public/com/taobao/arthas/arthas-packaging/3.4.6/arthas-packaging-3.4.6-bin.zip" && \
